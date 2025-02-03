@@ -8,7 +8,7 @@ import (
 const testFullResult = `├───project
 │	├───file.txt (19b)
 │	└───gopher.png (70372b)
-├───static
+├───static 
 │	├───a_lorem
 │	│	├───dolor.txt (empty)
 │	│	├───gopher.png (70372b)
