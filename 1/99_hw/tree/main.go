@@ -23,43 +23,75 @@ func main() {
 }
 
 func dirTree(out io.Writer, path string, printFiles bool) error {
-	createTree(path, "")
+	createTree(out, path, "", printFiles)
 	return nil
 }
 
-func createTree(path string, prefix string) {
-
-	//TODO + : Считывание директорий и их вывод отсортированно и с правильными префиксами, без отступов.
-	//TODO + : настроить отступы
-	//TODO + : решить проблему с последним отступом
-	//TODO: настроить флаг вывода директорий без файлов
+func createTree(out io.Writer, path string, prefix string, printFiles bool) {
 
 	entries, err := os.ReadDir(path)
 
 	if err != nil {
-		log.Fatal("Read not:", err)
+		log.Fatalf("cannot read directory %s: %v", path, err)
 	}
 
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Name() < entries[j].Name()
-	})
+	entries = sorting(entries, printFiles)
 
 	for index, entry := range entries {
 
-		if index == len(entries)-1 {
-			fmt.Println(prefix + "└───" + entry.Name())
-		} else {
-			fmt.Println(prefix + "├───" + entry.Name())
+		isLastEntry := index == len(entries)-1
+		connector := "├───"
+
+		if isLastEntry {
+			connector = "└───"
 		}
 
+		fullPath := filepath.Join(path, entry.Name())
+
 		if entry.IsDir() {
-			newPrefix := prefix
-			if index == len(entries)-1 {
-				newPrefix += "\t"
+
+			if isLastEntry {
+				fmt.Fprintf(out, "%s%s%s\n", prefix, connector, entry.Name())
+				newPrefix := prefix + "\t"
+				createTree(out, fullPath, newPrefix, printFiles)
 			} else {
-				newPrefix += "│\t"
+				fmt.Fprintf(out, "%s%s%s\n", prefix, connector, entry.Name())
+				newPrefix := prefix + "│\t"
+				createTree(out, fullPath, newPrefix, printFiles)
 			}
-			createTree(filepath.Join(path, entry.Name()), newPrefix)
+
+		} else if printFiles {
+
+			info, err := entry.Info()
+			if err != nil {
+				log.Fatal(err)
+			}
+			fileSize := fmt.Sprintf("%db", info.Size())
+			if info.Size() == 0 {
+				fileSize = "empty"
+			}
+
+			fmt.Fprintf(out, "%s%s%s (%s)\n", prefix, connector, entry.Name(), fileSize)
+
 		}
 	}
+
+}
+
+func sorting(entries []os.DirEntry, printFiles bool) []os.DirEntry {
+	var sorted []os.DirEntry
+	if !printFiles {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				sorted = append(sorted, entry)
+			}
+		}
+	} else {
+		sorted = entries
+	}
+
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Name() < sorted[j].Name()
+	})
+	return sorted
 }
